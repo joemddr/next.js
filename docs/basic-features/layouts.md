@@ -4,12 +4,9 @@ description: Learn how to share components and state between Next.js pages with 
 
 # Layouts
 
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/layout-component">layout-component</a></li>
-  </ul>
-</details>
+> **Note**: Next.js 13 introduces the `app/` directory (beta). This new directory has support for layouts, nested routes, and uses Server Components by default. Inside `app/`, you can fetch data for your entire application inside layouts, including support for more granular nested layouts (with [colocated data fetching](https://beta.nextjs.org/docs/data-fetching/fundamentals)).
+>
+> [Learn more about incrementally adopting `app/`](https://beta.nextjs.org/docs/upgrade-guide).
 
 The React model allows us to deconstruct a [page](/docs/basic-features/pages.md) into a series of components. Many of these components are often reused between pages. For example, you might have the same navigation bar and footer on every page.
 
@@ -61,16 +58,18 @@ import Layout from '../components/layout'
 import NestedLayout from '../components/nested-layout'
 
 export default function Page() {
-  return {
+  return (
     /** Your content */
-  }
+  )
 }
 
-Page.getLayout = (page) => (
-  <Layout>
-    <NestedLayout>{page}</NestedLayout>
-  </Layout>
-)
+Page.getLayout = function getLayout(page) {
+  return (
+    <Layout>
+      <NestedLayout>{page}</NestedLayout>
+    </Layout>
+  )
+}
 ```
 
 ```jsx
@@ -84,11 +83,61 @@ export default function MyApp({ Component, pageProps }) {
 }
 ```
 
-When navigating between pages, we want to *persist* page state (input values, scroll position, etc) for a Single-Page Application (SPA) experience.
+When navigating between pages, we want to *persist* page state (input values, scroll position, etc.) for a Single-Page Application (SPA) experience.
 
 This layout pattern enables state persistence because the React component tree is maintained between page transitions. With the component tree, React can understand which elements have changed to preserve state.
 
 > **Note**: This process is called [reconciliation](https://reactjs.org/docs/reconciliation.html), which is how React understands which elements have changed.
+
+### With TypeScript
+
+When using TypeScript, you must first create a new type for your pages which includes a `getLayout` function. Then, you must create a new type for your `AppProps` which overrides the `Component` property to use the previously created type.
+
+```tsx
+// pages/index.tsx
+
+import type { ReactElement } from 'react'
+import Layout from '../components/layout'
+import NestedLayout from '../components/nested-layout'
+import type { NextPageWithLayout } from './_app'
+
+const Page: NextPageWithLayout = () => {
+  return <p>hello world</p>
+}
+
+Page.getLayout = function getLayout(page: ReactElement) {
+  return (
+    <Layout>
+      <NestedLayout>{page}</NestedLayout>
+    </Layout>
+  )
+}
+
+export default Page
+```
+
+```tsx
+// pages/_app.tsx
+
+import type { ReactElement, ReactNode } from 'react'
+import type { NextPage } from 'next'
+import type { AppProps } from 'next/app'
+
+export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
+  getLayout?: (page: ReactElement) => ReactNode
+}
+
+type AppPropsWithLayout = AppProps & {
+  Component: NextPageWithLayout
+}
+
+export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+  // Use the layout defined at the page level, if available
+  const getLayout = Component.getLayout ?? ((page) => page)
+
+  return getLayout(<Component {...pageProps} />)
+}
+```
 
 ### Data Fetching
 
